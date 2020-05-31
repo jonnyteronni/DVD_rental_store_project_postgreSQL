@@ -1,0 +1,103 @@
+
+SLIDE 1
+We want to understand more about the movies that families are watching. The following categories are considered family movies: Animation, Children, Classics, Comedy, Family and Music.
+
+Create a query that lists each movie, the film category it is classified in, and the number of times it has been rented out.
+
+	SELECT f.title AS Title,c.name AS Category,COUNT(*) AS Number_Movies_Rented
+	FROM category c
+	JOIN film_category fc
+		ON fc.category_id = c.category_id
+	JOIN film f
+		ON f.film_id = fc.film_id
+	JOIN inventory i
+		ON i.film_id = f.film_id
+	JOIN rental r
+		ON r.inventory_id = i.inventory_id
+		
+	WHERE c.name = 'Animation' OR
+		c.name = 'Children' OR
+		c.name = 'Classics' OR
+		c.name = 'Comedy' OR
+		c.name = 'Family' OR
+		c.name = 'Music'
+	GROUP BY 1,2
+	ORDER BY 2;
+
+
+
+
+
+
+SLIDE 2
+What is the average of number of actors per film?
+
+	SELECT AVG(count_actors) average_actors
+	FROM (
+		SELECT f.film_id, f.title, COUNT(fa.actor_id) count_actors
+		FROM film f
+		JOIN film_actor fa
+			ON f.film_id = fa.film_id
+		GROUP BY 1,2) temp;
+
+
+
+
+
+
+
+SLIDE 3
+WHat is the sales percentage per month per staff?
+
+	WITH t1 AS (
+		SELECT 
+			pay.staff_id, pay.amount,
+			DATE_PART('month',r.rental_date) AS month,
+			DATE_PART('year',r.rental_date) AS year,
+			s.first_name || ' ' || s.last_name AS seller_name
+		FROM payment pay
+		JOIN staff s
+			ON s.staff_id = pay.staff_id
+		JOIN rental r
+			ON r.rental_id = pay.rental_id),
+
+		t2 AS (
+		SELECT 
+			DISTINCT pay.staff_id,
+			SUM(pay.amount) OVER (PARTITION BY pay.staff_id) AS total_sales
+		FROM payment pay
+		JOIN rental r
+			ON r.rental_id = pay.rental_id
+		WHERE DATE_PART('year',r.rental_date) <> 2006)
+		
+	SELECT
+		t1.staff_id,t1.seller_name, t1.month,t1.year,
+		SUM(t1.amount) AS sales, (SUM(t1.amount)/t2.total_sales) AS percentage
+	FROM t1
+	JOIN t2
+	 ON t1.staff_id = t2.staff_id
+	WHERE t1.year <> 2006
+	GROUP BY 1,2,3,4,total_sales
+	ORDER BY 1,4,3;
+
+
+
+
+SLIDE 4
+What are the best 5 customers on all stores
+
+	WITH t1 AS (
+	SELECT
+		customer_id,
+		first_name || ' ' || last_name AS customer_name
+	FROM customer)
+
+	SELECT pay.customer_id, t1.customer_name, SUM(pay.amount) sum_amount
+	FROM payment pay
+	JOIN t1
+		ON pay.customer_id = t1.customer_id
+	GROUP BY 1,2
+	ORDER BY 3 DESC
+	LIMIT 5;
+
+
